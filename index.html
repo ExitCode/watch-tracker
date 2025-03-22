@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#007BFF">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>watchTracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+        #progressBar {
+            position: fixed;
+            z-index: 1000;
+            top: 0px;
+            left: 0px;
+            height: 1.0vh;
+            background: rgb(215, 47, 5);
+        }
+        h1 { margin-bottom:  2.0vw; font-size: 3.2vw; }
+        .tile { 
+            margin: 1.0vw; 
+            padding: 0.5vw; 
+            border: 1px solid #ccc; 
+            border-radius: 1.0vw;
+            background-color: #f5f5f5; 
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1); 
+            transition: 0.2s;
+            font-size: 4.0vw; 
+        }
+        .tile:hover { transform: scale(1.05); background-color: #9ed1e8; }
+        .buttons button {
+            margin: 0.25vw; 
+            padding: 2.0vw 5.0vw; 
+            border: none; 
+            background-color: #007BFF; 
+            color: white; 
+            border-radius: 0.5vw;
+            cursor: pointer;
+            font-size: 2.0vw; 
+        }
+        .buttons button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+    <div id="progressBar" style="width: 0%;"></div>
+    <h1>watchTracker</h1>
+    <div>
+        <input type="text" id="seriesName" placeholder="Enter series name">
+        <button onclick="addSeries()">Add Series</button>
+    </div>
+    <div id="seriesContainer"></div>
+    <script>
+        var seriesData = JSON.parse(localStorage.getItem('watchTrackerData')) || [];
+    
+        function saveData() {
+            localStorage.setItem('watchTrackerData', JSON.stringify(seriesData));
+        }
+
+        function addSeries() {
+            const name = document.getElementById('seriesName').value.trim();
+            if (!name || seriesData.some(series => series.name === name)) {
+                alert("Please enter a unique series name.");
+                return;
+            }
+
+            seriesData.push({ name, season: 1, episode: 1, lastChange: Date.now() });
+            saveData();
+            renderSeries();
+            document.getElementById('seriesName').value = '';
+        }
+
+        function resetProgress() {
+            console.log("reset p")
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.transition = 'width 0s';
+            progressBar.style.width = '0%';
+        }
+
+        function startProgress(timeMs) {
+            const progressBar = document.getElementById('progressBar');
+            const time = timeMs / 1000;
+            progressBar.style.transition = 'width ' + time + 's';
+            progressBar.style.width = '100%';
+
+            console.log(progressBar.style.transition);
+        }
+
+        var updateSeriesHandle
+        function updateSeries(event, index, type, hold) {
+            const timeMs = 500;
+            event.preventDefault();
+            clearTimeout(updateSeriesHandle)
+
+            resetProgress()
+            if (!hold) return;
+            startProgress(timeMs)
+
+            updateSeriesHandle = setTimeout(() => {
+                seriesData[index].lastChange = Date.now();
+                if (type === 'season') {
+                    seriesData[index].season++;
+                    seriesData[index].episode = 1;
+                } else if (type === 'episode') {
+                    seriesData[index].episode++;
+                }
+                saveData();
+                renderSeries();
+            }, timeMs);
+        }
+
+        var resetSeriesHandle
+        function resetSeries(event, index, hold) {
+            const timeMs = 3000;
+            event.preventDefault();
+            clearTimeout(resetSeriesHandle)
+
+            resetProgress()
+            if (!hold) return;
+            startProgress(timeMs)
+            
+            resetSeriesHandle = setTimeout(() => {
+                seriesData[index].season = 1;
+                seriesData[index].episode = 1;
+                saveData();
+                renderSeries();
+            }, timeMs);
+        }
+
+        var deleteSeriesHandle
+        function deleteSeries(event, index, hold) {
+            const timeMs = 5000;
+            event.preventDefault();
+            clearTimeout(deleteSeriesHandle)
+
+            resetProgress()
+            if (!hold) return;
+            startProgress(timeMs)
+            
+            deleteSeriesHandle = setTimeout(() => {
+                seriesData.splice(index, 1);
+                saveData();
+                renderSeries();
+            }, timeMs);
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(seriesData));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", "watchTrackerData.json");
+            dlAnchorElem.click();
+        }
+
+        function importData(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = () => {
+                seriesData.length = 0;
+                seriesData.push(...JSON.parse(fileReader.result));
+                saveData();
+                renderSeries();
+            };
+            fileReader.readAsText(event.target.files[0]);
+        }
+
+        function compareSeries(a, b) {
+            return (b.lastChange ?? 0) - (a.lastChange ?? 0);
+        }
+
+        function renderSeries() {
+            const container = document.getElementById('seriesContainer');
+            container.innerHTML = '';
+            seriesData
+                .sort(compareSeries)
+                .forEach((series, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'tile';
+                    div.innerHTML = `
+                        <div>${series.name} - <b>S${String(series.season).padStart(2, '0')}E${String(series.episode).padStart(2, '0')}</b></div>
+                        <div class="buttons">
+                            <button
+                                onmousedown="updateSeries(event, ${index}, 'season', true)"
+                                onmouseup="updateSeries(event, ${index}, 'season', false)"
+                                ontouchstart="updateSeries(event, ${index}, 'season', true)" 
+                                ontouchend="updateSeries(event, ${index}, 'season', false)">+S</button>
+                            <button
+                                onmousedown="updateSeries(event, ${index}, 'episode', true)"
+                                onmouseup="updateSeries(event, ${index}, 'episode', false)"
+                                ontouchstart="updateSeries(event, ${index}, 'episode', true)" 
+                                ontouchend="updateSeries(event, ${index}, 'episode', false)">+E</button>
+                            <button 
+                                onmousedown="resetSeries(event, ${index}, true)"
+                                onmouseup="resetSeries(event, ${index}, false)"
+                                ontouchstart="resetSeries(event, ${index}, true)" 
+                                ontouchend="resetSeries(event, ${index}, false)">RST</button>
+                            <button 
+                                onmousedown="deleteSeries(event, ${index}, true)"
+                                onmouseup="deleteSeries(event, ${index}, false)"
+                                ontouchstart="deleteSeries(event, ${index}, true)" 
+                                ontouchend="deleteSeries(event, ${index}, false)">DEL</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+        }
+
+        document.getElementById('seriesName').addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                addSeries();
+            }
+        });
+
+        document.body.addEventListener('load', renderSeries);
+        renderSeries();
+    </script>
+    <div>
+        <button onclick="exportData()">Export Data</button>
+        <input type="file" accept=".json" onchange="importData(event)">
+    </div>
+</body>
+</html>
