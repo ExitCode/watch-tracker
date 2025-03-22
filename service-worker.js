@@ -2,13 +2,13 @@
 
 const CACHE_NAME = "watchTracker-cache-v1";
 const urlsToCache = [
-    "/",
-    "/index.html",
-    "/style.css",
-    "/script.js",
-    "/manifest.json",
-    "/icons/icon-192x192.png",
-    "/icons/icon-512x512.png"
+    "/watch-tracker/",
+    "/watch-tracker/index.html",
+    "/watch-tracker/style.css",
+    "/watch-tracker/script.js",
+    "/watch-tracker/manifest.json",
+    "/watch-tracker/icons/icon-192x192.png",
+    "/watch-tracker/icons/icon-512x512.png"
 ];
 
 // Install Event: Caches app shell
