@@ -209,6 +209,12 @@
             }
         });
 
+        if (navigator.storage && navigator.storage.persist) {
+            navigator.storage.persist().then((persistResult) => {
+                console.log(`Persisted storage granted: ${persistResult}`);
+            });
+        }
+
         document.body.addEventListener('load', renderSeries);
         renderSeries();
     </script>
